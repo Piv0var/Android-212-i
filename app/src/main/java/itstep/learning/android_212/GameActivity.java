@@ -16,6 +16,10 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
 public class GameActivity extends AppCompatActivity {
     private TextView tvScore;
     private TextView tvBestScore;
@@ -24,6 +28,8 @@ public class GameActivity extends AppCompatActivity {
     private final int N = 4;
     private final int[][] tiles = new int[N][N];
     private final TextView[][] tvTiles = new TextView[N][N];
+    private final Random random = new Random();
+    private boolean testMode = true; // Переключатель тестового режима
 
     @SuppressLint({"ClickableViewAccessibility", "DiscouragedApi"})
     @Override
@@ -48,31 +54,29 @@ public class GameActivity extends AppCompatActivity {
                 );
             }
         }
-        tvScore = findViewById( R.id.game_tv_score );
-        tvBestScore = findViewById( R.id.game_tv_best );
-        LinearLayout gameField = findViewById( R.id.game_layout_field );
-        /*
-        На етапі onCreate активність ще не "зверстана" - розмітка завантажена, об'єкти
-        створені, але реальні розміри ще не розраховані. Для того щоб виконати дії після
-        готовності елемента йому передають задачі методом post
-         */
-        gameField.post( () -> {
+        tvScore = findViewById(R.id.game_tv_score);
+        tvBestScore = findViewById(R.id.game_tv_best);
+        LinearLayout gameField = findViewById(R.id.game_layout_field);
+
+        gameField.post(() -> {
             int windowWidth = this.getWindow().getDecorView().getWidth();
-            // задаємо відступи (margin - частина розмірів, до вікна не належить)
             int fieldMargins = 20;
-            // Замінюємо параметри шаблона (layout) для поля на нові
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                     windowWidth - 2 * fieldMargins,
                     windowWidth - 2 * fieldMargins
             );
-            params.setMargins( fieldMargins, fieldMargins, fieldMargins, fieldMargins );
+            params.setMargins(fieldMargins, fieldMargins, fieldMargins, fieldMargins);
             params.gravity = Gravity.CENTER;
-            gameField.setLayoutParams( params );
+            gameField.setLayoutParams(params);
         });
-        gameField.setOnTouchListener( new OnSwipeListener( this ) {
+
+        gameField.setOnTouchListener(new OnSwipeListener(this) {
             @Override
             public void onSwipeBottom() {
                 Toast.makeText(GameActivity.this, "onSwipeBottom", Toast.LENGTH_SHORT).show();
+                if (testMode) {
+                    toggleTestMode();
+                }
             }
             @Override
             public void onSwipeLeft() {
@@ -86,29 +90,103 @@ public class GameActivity extends AppCompatActivity {
             public void onSwipeTop() {
                 Toast.makeText(GameActivity.this, "onSwipeTop", Toast.LENGTH_SHORT).show();
             }
-        } );
+        });
+
         bestScore = 0L;
         startNewGame();
     }
 
     private void startNewGame() {
         score = 0L;
+
+        if (testMode) {
+            // Заполняем поле тестовыми значениями от 0 до 64
+            fillWithTestValues();
+        } else {
+            // Инициализируем все ячейки нулями (пустыми)
+            for (int i = 0; i < N; i++) {
+                for (int j = 0; j < N; j++) {
+                    tiles[i][j] = 0;
+                }
+            }
+
+            // Добавляем две случайные ячейки
+            addRandomTile();
+            addRandomTile();
+            addRandomTile();
+            addRandomTile();
+            addRandomTile();
+            addRandomTile();
+            addRandomTile();
+            addRandomTile();
+            addRandomTile();
+            addRandomTile();
+        }
+
+        updateField();
+    }
+
+    private void toggleTestMode() {
+        testMode = !testMode;
+        startNewGame();
+        Toast.makeText(this, "Test mode: " + (testMode ? "ON" : "OFF"), Toast.LENGTH_SHORT).show();
+    }
+
+    private void fillWithTestValues() {
+        int[] values = {0, 2, 4, 8, 16, 32, 64};
+
+//        for (int i = 0; i < N; i++) {
+//            for (int j = 0; j < N; j++) {
+//                int index = (i * N + j) % values.length;
+//                tiles[i][j] = values[index];
+//            }
+//        }
+
+        // Второй вариант: случайное заполнение всеми значениями
+        // Раскомментируйте этот код, если хотите случайное размещение значений
+
         for (int i = 0; i < N; i++) {
             for (int j = 0; j < N; j++) {
-                tiles[i][j] = (int) Math.pow(2, i + j + 1);
-                if(tiles[i][j] > 64) tiles[i][j] = 0;
+                int randomIndex = random.nextInt(values.length);
+                tiles[i][j] = values[randomIndex];
             }
         }
-        updateField();
+
+    }
+
+    // Добавляет новую случайную ячейку (2 или 4) в случайное пустое место
+    private void addRandomTile() {
+        // Находим все пустые ячейки
+        List<int[]> emptyCells = new ArrayList<>();
+        for (int i = 0; i < N; i++) {
+            for (int j = 0; j < N; j++) {
+                if (tiles[i][j] == 0) {
+                    emptyCells.add(new int[] {i, j});
+                }
+            }
+        }
+        if (emptyCells.isEmpty()) {
+            return;
+        }
+        int[] randomCell = emptyCells.get(random.nextInt(emptyCells.size()));
+        int row = randomCell[0];
+        int col = randomCell[1];
+        tiles[row][col] = random.nextInt(10) < 9 ? 2 : 4;
     }
 
     @SuppressLint("DiscouragedApi")
     private void updateField() {
-        tvScore.setText( getString( R.string.game_tv_score_tpl, scoreToString( score ) ) );
-        tvBestScore.setText( getString( R.string.game_tv_best_tpl, scoreToString( bestScore ) ) );
+        tvScore.setText(getString(R.string.game_tv_score_tpl, scoreToString(score)));
+        tvBestScore.setText(getString(R.string.game_tv_best_tpl, scoreToString(bestScore)));
         for (int i = 0; i < N; i++) {
             for (int j = 0; j < N; j++) {
-                tvTiles[i][j].setText( String.valueOf( tiles[i][j] ) );
+                // Для пустых ячеек (со значением 0) устанавливаем пустой текст
+                if (tiles[i][j] == 0) {
+                    tvTiles[i][j].setText("");
+                } else {
+                    tvTiles[i][j].setText(String.valueOf(tiles[i][j]));
+                }
+
                 tvTiles[i][j].getBackground().setColorFilter(
                         getResources().getColor(
                                 getResources().getIdentifier(
@@ -123,7 +201,7 @@ public class GameActivity extends AppCompatActivity {
                 tvTiles[i][j].setTextColor(
                         getResources().getColor(
                                 getResources().getIdentifier(
-                                        "game_tv_tile_bg_" + tiles[i][j],
+                                        "game_tv_tile_fg_" + tiles[i][j],
                                         "color",
                                         getPackageName()
                                 ),
@@ -134,7 +212,7 @@ public class GameActivity extends AppCompatActivity {
         }
     }
 
-    private String scoreToString( long score ) {
-        return String.valueOf( score );
+    private String scoreToString(long score) {
+        return String.valueOf(score);
     }
 }
